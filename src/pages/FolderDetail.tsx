@@ -21,6 +21,7 @@ import { OwnerChip } from '../components/Navbar';
 import { useToast } from '../components/Toast';
 import {
   IconArrowLeft,
+  IconArrowRight,
   IconBan,
   IconBulb,
   IconCheck,
@@ -43,6 +44,15 @@ import {
   TopicIcon,
 } from '../icons';
 
+const VIEW_KEY = 'folder-view';
+const readView = (): 'a4' | 'cards' => {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'a4' ? 'a4' : 'cards';
+  } catch {
+    return 'cards';
+  }
+};
+
 export default function FolderDetail() {
   const { folderId } = useParams();
   return <FolderGate folderId={folderId}>{(folder, role) => <Detail folder={folder} role={role} />}</FolderGate>;
@@ -56,10 +66,17 @@ function Detail({ folder, role }: { folder: Folder; role: Role }) {
   const { stats } = useProgress(folder.id, uid);
   const [dialog, setDialog] = useState<'edit' | 'share' | 'import' | null>(null);
   const [showAnswers, setShowAnswers] = useState(true);
-  // Chế độ xem ghi trên URL (?view=a4) để gửi link là mở đúng kiểu xem.
+  // Kiểu xem (Thẻ / Trang A4): nhớ trên trình duyệt để mọi thư mục dùng chung lựa chọn.
+  // Link có ?view=… (vd. người khác gửi) được ưu tiên; đổi kiểu thì lưu lại và cập nhật link.
   const [params, setParams] = useSearchParams();
-  const view = params.get('view') === 'a4' ? 'a4' : 'cards';
-  const setView = (v: 'a4' | 'cards') =>
+  const fromUrl = params.get('view');
+  const view: 'a4' | 'cards' = fromUrl === 'a4' || fromUrl === 'cards' ? fromUrl : readView();
+  const setView = (v: 'a4' | 'cards') => {
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* bộ nhớ trình duyệt bị chặn – vẫn đổi được trong lần này */
+    }
     setParams(
       (p) => {
         if (v === 'a4') p.set('view', 'a4');
@@ -68,6 +85,7 @@ function Detail({ folder, role }: { folder: Folder; role: Role }) {
       },
       { replace: true },
     );
+  };
 
   const site = useSite();
   // Admin sửa được mọi thư mục; chủ / người được mời sửa thì cần không bị khóa và web không bảo trì.
@@ -173,11 +191,11 @@ function Detail({ folder, role }: { folder: Folder; role: Role }) {
 
       {learnable.length > 0 && (
         <section className="grid gap-3 sm:grid-cols-3">
-          <StudyButton to={`/f/${folder.id}/study?mode=learn`} cls="btn-primary" Icon={IconPlay} title="Học" sub="Biết đúng sai ngay" />
-          <StudyButton to={`/f/${folder.id}/study?mode=test`} cls="btn-test" Icon={IconShuffle} title="Kiểm tra" sub="Trộn câu, chấm điểm" />
+          <StudyButton to={`/f/${folder.id}/study?mode=learn`} accent="lilac-500" Icon={IconPlay} title="Học" sub="Biết đúng sai ngay" />
+          <StudyButton to={`/f/${folder.id}/study?mode=test`} accent="btn-test" Icon={IconShuffle} title="Kiểm tra" sub="Trộn câu, chấm điểm" />
           <StudyButton
             to={`/f/${folder.id}/study?mode=review`}
-            cls="btn-review"
+            accent="btn-review"
             Icon={IconRepeat}
             title={`Ôn câu sai (${reviewCount})`}
             sub={reviewCount ? 'Luyện lại câu hay sai' : 'Chưa có câu sai nào'}
@@ -326,36 +344,49 @@ function Detail({ folder, role }: { folder: Folder; role: Role }) {
   );
 }
 
+/**
+ * Thẻ chọn chế độ học: nền nhẹ, chỉ điểm màu ở ô icon và vạch bên trái (màu theo theme qua biến CSS).
+ * accent = tên biến màu dạng "R G B", vd. 'lilac-500', 'btn-test', 'btn-review'.
+ */
 function StudyButton({
   to,
-  cls,
+  accent,
   Icon,
   title,
   sub,
   disabled,
 }: {
   to: string;
-  cls: string;
+  accent: string;
   Icon: typeof IconPlay;
   title: string;
   sub: string;
   disabled?: boolean;
 }) {
+  const style = { '--accent': `var(--${accent})` } as React.CSSProperties;
   const inner = (
     <>
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface/25">
+      <span className="absolute inset-y-3 left-0 w-1 rounded-r-full" style={{ background: 'rgb(var(--accent))' }} />
+      <span
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+        style={{ background: 'rgb(var(--accent) / 0.13)', color: 'rgb(var(--accent))' }}
+      >
         <Icon size={22} />
       </span>
-      <span className="text-left">
-        <span className="block text-lg leading-tight">{title}</span>
-        <span className="block text-xs font-semibold opacity-85">{sub}</span>
+      <span className="min-w-0 flex-1 text-left">
+        <span className="block font-black leading-tight">{title}</span>
+        <span className="block truncate text-xs font-semibold text-ink/50">{sub}</span>
       </span>
+      {!disabled && <IconArrowRight size={18} className="shrink-0 text-ink/25 transition group-hover:translate-x-0.5" />}
     </>
   );
+  const cls = 'card group relative flex items-center gap-3 overflow-hidden py-3.5 pl-4 pr-3 transition';
   return disabled ? (
-    <div className={`${cls} justify-start py-3 opacity-50`}>{inner}</div>
+    <div className={`${cls} opacity-55`} style={style}>
+      {inner}
+    </div>
   ) : (
-    <Link to={to} className={`${cls} justify-start py-3`}>
+    <Link to={to} className={`${cls} hover:-translate-y-0.5 hover:border-[rgb(var(--accent)/0.45)] hover:shadow-lg`} style={style}>
       {inner}
     </Link>
   );
@@ -396,7 +427,7 @@ function QuestionItem({
               Bị kiểm duyệt ẩn{q.hiddenReason ? `: ${q.hiddenReason}` : ''}
             </span>
           )}
-          <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
+          <ul className="mt-3 flex flex-col gap-1.5">
             {q.options.map((o, i) => {
               const right = showAnswers && q.correctIds.includes(o.id);
               return (
@@ -414,8 +445,8 @@ function QuestionItem({
             })}
           </ul>
           {showAnswers && q.note && (
-            <div className="mt-3 flex gap-2 rounded-xl bg-lemon-100 px-3 py-2 text-sm">
-              <IconBulb size={18} className="shrink-0 text-lemon-500" />
+            <div className="mt-3 flex gap-2 border-l-2 border-lemon-300 pl-3 text-sm text-ink/70">
+              <IconBulb size={16} className="mt-0.5 shrink-0 text-lemon-500" />
               <p className="whitespace-pre-line">{q.note}</p>
             </div>
           )}

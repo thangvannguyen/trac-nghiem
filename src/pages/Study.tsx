@@ -318,8 +318,8 @@ function Player({
               {correctNow ? 'Chính xác! Giỏi quá!' : 'Chưa đúng rồi, xem lại nhé!'}
             </div>
             {card.q.note && (
-              <div className="flex gap-2 rounded-2xl bg-lemon-100 px-4 py-3">
-                <IconBulb size={20} className="shrink-0 text-lemon-500" />
+              <div className="flex gap-2 border-l-2 border-lemon-300 pl-3 text-sm text-ink/70 py-0.5">
+                <IconBulb size={16} className="mt-0.5 shrink-0 text-lemon-500" />
                 <p className="whitespace-pre-line">{card.q.note}</p>
               </div>
             )}
@@ -624,8 +624,8 @@ function Sheet({
                 {right ? 'Chính xác!' : 'Chưa đúng – đáp án đúng được tô xanh.'}
               </div>
               {c.q.note && (
-                <div className="flex gap-2 rounded-xl bg-lemon-100 px-3 py-2 text-sm">
-                  <IconBulb size={18} className="shrink-0 text-lemon-500" />
+                <div className="flex gap-2 border-l-2 border-lemon-300 pl-3 text-sm text-ink/70">
+                  <IconBulb size={16} className="mt-0.5 shrink-0 text-lemon-500" />
                   <p className="whitespace-pre-line">{c.q.note}</p>
                 </div>
               )}
@@ -824,8 +824,8 @@ function Results({
                     {mine.length === 0 && <li className="px-3 text-ink/45">(Bạn chưa trả lời)</li>}
                   </ul>
                   {c.q.note && (
-                    <div className="mt-2 flex gap-2 rounded-xl bg-lemon-100 px-3 py-2 text-sm">
-                      <IconBulb size={18} className="shrink-0 text-lemon-500" />
+                    <div className="mt-2 flex gap-2 border-l-2 border-lemon-300 pl-3 text-sm text-ink/70">
+                      <IconBulb size={16} className="mt-0.5 shrink-0 text-lemon-500" />
                       <p className="whitespace-pre-line">{c.q.note}</p>
                     </div>
                   )}
