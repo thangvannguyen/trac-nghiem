@@ -185,7 +185,7 @@ export default function QuestionsTab({ me }: { me: User }) {
                     )}
                   </div>
                   <p className="whitespace-pre-line font-bold leading-snug">{x.text}</p>
-                  <ul className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
+                  <ul className="mt-2 flex flex-col gap-1 text-sm">
                     {x.options.map((o, i) => {
                       const right = x.correctIds.includes(o.id);
                       return (
