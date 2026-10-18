@@ -1,4 +1,4 @@
-import type { Folder, Option, Question } from '../lib/types';
+import type { Folder, Question } from '../lib/types';
 
 /*
  * Xem danh sách câu hỏi dạng trang A4 như đề thi giấy. In / lưu PDF ra đúng khổ A4
@@ -6,14 +6,6 @@ import type { Folder, Option, Question } from '../lib/types';
  */
 
 const LETTER = (i: number) => String.fromCharCode(65 + i);
-
-/** Số cột cho đáp án theo độ dài: ngắn → 4 cột, vừa → 2 cột, dài → 1 cột. */
-export function columnsFor(options: Option[]) {
-  const longest = Math.max(...options.map((o) => o.text.length));
-  if (longest <= 22 && options.length <= 4) return 'grid-cols-2 sm:grid-cols-4';
-  if (longest <= 50) return 'grid-cols-1 sm:grid-cols-2';
-  return 'grid-cols-1';
-}
 
 export default function QuestionPaper({
   folder,
@@ -69,7 +61,7 @@ export default function QuestionPaper({
                 <b>Câu {i + 1}.</b>
                 {q.correctIds.length > 1 && <b> (*)</b>} {q.text}
               </p>
-              <ul className={`mt-1 grid gap-x-4 gap-y-0.5 pl-4 ${columnsFor(q.options)}`}>
+              <ul className="mt-1 flex flex-col gap-0.5 pl-4">
                 {q.options.map((o, k) => {
                   const right = showAnswers && q.correctIds.includes(o.id);
                   return (
