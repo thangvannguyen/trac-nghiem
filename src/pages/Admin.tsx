@@ -22,7 +22,7 @@ import {
   type AppConfig,
   type UserRow,
 } from '../lib/admin';
-import { deleteFolder } from '../lib/folders';
+import { deleteFolder, useSharing } from '../lib/folders';
 import type { Folder, Visibility } from '../lib/types';
 import { LoginPrompt } from '../components/LoginButton';
 import NotFound from './NotFound';
@@ -579,6 +579,7 @@ function FoldersTab({ me }: { me: User }) {
                   <div className="truncate text-xs font-semibold text-ink/50">
                     {emailOf.get(f.ownerId) ?? f.ownerName ?? f.ownerId} · {f.questionCount} câu · cập nhật {fmtDate(f.updatedAt)}
                   </div>
+                  {role.isAdmin && <InvitedPeek folder={f} />}
                 </div>
               </div>
               <div className="flex shrink-0 flex-wrap gap-1.5">
@@ -639,6 +640,39 @@ function FoldersTab({ me }: { me: User }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Admin xem email thật của người được mời (thư mục chỉ lưu mã băm; email nằm ở tài liệu riêng chỉ chủ / admin đọc). */
+function InvitedPeek({ folder }: { folder: Folder }) {
+  const [open, setOpen] = useState(false);
+  const n = (folder.viewerKeys?.length ?? 0) + (folder.editorKeys?.length ?? 0);
+  if (!n) return null;
+  return (
+    <div className="mt-1">
+      <button className="text-xs font-extrabold text-lilac-500 hover:underline" onClick={() => setOpen((o) => !o)}>
+        <IconUsers size={13} className="mr-1 inline" />
+        Người được mời ({n}) {open ? '▲' : '▼'}
+      </button>
+      {open && <InvitedList folderId={folder.id} />}
+    </div>
+  );
+}
+
+function InvitedList({ folderId }: { folderId: string }) {
+  const s = useSharing(folderId);
+  const rows = [
+    ...s.editorEmails.map((e) => ({ e, r: 'Sửa' })),
+    ...s.viewerEmails.map((e) => ({ e, r: 'Xem' })),
+  ];
+  return (
+    <ul className="mt-1 flex flex-wrap gap-1.5">
+      {rows.map((x) => (
+        <li key={x.e} className="chip bg-ink/5 text-ink/70">
+          {x.e} <span className="text-ink/40">· {x.r}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

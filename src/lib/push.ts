@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { deleteToken, getMessaging, getToken, isSupported } from 'firebase/messaging';
 import { collection, deleteDoc, doc, getCountFromServer, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { app, db } from './firebase';
+import { BASE } from './basePath';
 import { track } from './analytics';
 
 /*
@@ -18,7 +19,7 @@ export const FCM_VAPID_KEY = '';
 
 export const pushConfigured = () => FCM_VAPID_KEY.length > 0;
 
-const SW_URL = '/firebase-messaging-sw.js';
+const SW_URL = `${BASE}firebase-messaging-sw.js`;
 
 async function registration() {
   return navigator.serviceWorker.register(SW_URL);

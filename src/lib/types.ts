@@ -19,8 +19,9 @@ export interface Folder {
   /** Bị kiểm duyệt ẩn (luôn ở chế độ riêng tư). */
   hidden?: boolean;
   hiddenReason?: string;
-  viewerEmails: string[];
-  editorEmails: string[];
+  /** Mã băm email người được mời (xem emailKey.ts); email thật nằm ở folders/{id}/private/sharing. */
+  viewerKeys: string[];
+  editorKeys: string[];
   questionCount: number;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;

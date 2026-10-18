@@ -33,7 +33,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "viewerEmails",
+          "fieldPath": "viewerKeys",
           "arrayConfig": "CONTAINS"
         },
         {
@@ -47,7 +47,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "editorEmails",
+          "fieldPath": "editorKeys",
           "arrayConfig": "CONTAINS"
         },
         {

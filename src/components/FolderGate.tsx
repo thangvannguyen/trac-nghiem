@@ -13,7 +13,7 @@ export default function FolderGate({
   folderId: string | undefined;
   children: (folder: Folder, role: Role) => ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, loading, emailKey } = useAuth();
   const state = useFolder(loading ? undefined : folderId, user?.uid ?? 'guest');
 
   if (loading || state.status === 'loading')
@@ -30,5 +30,5 @@ export default function FolderGate({
       <LoginPrompt message="Thư mục này riêng tư. Nếu bạn được mời, hãy đăng nhập bằng email đã được chia sẻ." />
     );
   if (state.status === 'notfound') return <NotFound title="Không tìm thấy thư mục" />;
-  return <>{children(state.folder, roleOf(state.folder, user))}</>;
+  return <>{children(state.folder, roleOf(state.folder, user, emailKey))}</>;
 }

@@ -77,7 +77,7 @@ export async function removeQuestion(me: User, q: ModQuestion, folder?: Folder) 
   batch.delete(doc(db, 'folders', q.folderId, 'questions', q.id));
   if (folder) {
     batch.update(doc(db, 'folders', q.folderId), { questionCount: increment(-1), updatedAt: serverTimestamp() });
-    batch.set(doc(db, 'usage', folder.ownerId), { questions: increment(-1) }, { merge: true });
+    batch.set(doc(db, 'usage', folder.ownerId), { questions: increment(-1), lastQFolder: q.folderId }, { merge: true });
   }
   await batch.commit();
   await log(me, 'Xóa câu hỏi (kiểm duyệt)', short(q.text));

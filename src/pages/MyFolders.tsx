@@ -13,9 +13,9 @@ import { useToast } from '../components/Toast';
 import { IconPlus, IconUsers } from '../icons';
 
 export default function MyFolders() {
-  const { user, email, loading: authLoading } = useAuth();
+  const { user, emailKey, loading: authLoading } = useAuth();
   const mine = useMyFolders(user?.uid);
-  const shared = useSharedFolders(email);
+  const shared = useSharedFolders(emailKey);
   const [creating, setCreating] = useState(false);
   const { canWrite, role } = useSite();
   const quota = useMyQuota(user?.uid);

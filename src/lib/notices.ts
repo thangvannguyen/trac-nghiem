@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { db } from './firebase';
+import { siteUrl } from './basePath';
 import type { Audience, Tone } from './admin';
 
 /*
@@ -152,7 +153,7 @@ export async function createNotice(me: User, input: NoticeInput, publish: boolea
     ...input,
     active: publish,
     revision: 0,
-    link: window.location.origin,
+    link: siteUrl(),
     createdBy: me.uid,
     createdByName: me.displayName ?? '',
     createdAt: serverTimestamp(),

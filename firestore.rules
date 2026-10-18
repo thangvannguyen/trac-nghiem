@@ -7,10 +7,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Email đã xác minh của người đang đăng nhập ('' nếu không có / chưa xác minh).
     function myEmail() {
-      return signedIn() && request.auth.token.email is string
+      return signedIn() && request.auth.token.email is string && request.auth.token.get('email_verified', false) == true
         ? request.auth.token.email.lower()
         : '';
+    }
+
+    // Mã băm email (SHA-256 hex CHỮ HOA) – thư mục chỉ lưu mã băm của email được mời, không lưu email thật.
+    function myKey() {
+      return myEmail() != '' ? hashing.sha256(myEmail()).toHexString() : '';
     }
 
     /* ---------------- Phân quyền ---------------- */
@@ -105,11 +111,11 @@ service cloud.firestore {
     }
 
     function isEditor(f) {
-      return myEmail() != '' && myEmail() in f.editorEmails;
+      return myKey() != '' && myKey() in f.get('editorKeys', []);
     }
 
     function isInvited(f) {
-      return myEmail() != '' && (myEmail() in f.viewerEmails || myEmail() in f.editorEmails);
+      return myKey() != '' && (myKey() in f.get('viewerKeys', []) || myKey() in f.get('editorKeys', []));
     }
 
     // Đọc 1 thư mục theo ID: chủ, người được mời, hoặc thư mục có link / công khai.
@@ -130,9 +136,16 @@ service cloud.firestore {
       return d.name is string && d.name.size() > 0 && d.name.size() <= 100
         && d.description is string && d.description.size() <= 1000
         && d.visibility in ['private', 'link', 'public']
-        && d.viewerEmails is list && d.viewerEmails.size() <= 100
-        && d.editorEmails is list && d.editorEmails.size() <= 100
+        && d.get('viewerKeys', []) is list && d.get('viewerKeys', []).size() <= 100
+        && d.get('editorKeys', []) is list && d.get('editorKeys', []).size() <= 100
+        && !('viewerEmails' in d) && !('editorEmails' in d)   // không lưu email thật trong thư mục
         && d.questionCount is int;
+    }
+
+    // Tên / ảnh người chia sẻ phải là của chính tài khoản Google đang đăng nhập (chống giả danh).
+    function ownerInfoOk(d) {
+      return (d.get('ownerName', '') == '' || d.get('ownerName', '') == request.auth.token.get('name', ''))
+        && (d.get('ownerPhoto', '') == '' || d.get('ownerPhoto', '') == request.auth.token.get('picture', ''));
     }
 
     function validQuestion(d) {
@@ -169,7 +182,7 @@ service cloud.firestore {
         && request.resource.data.get('featured', false) == false
         && request.resource.data.get('hidden', false) == false
         && validFolder(request.resource.data)
-        && (isAdmin() || folderQuotaOk(folderId));
+        && (isAdmin() || (ownerInfoOk(request.resource.data) && folderQuotaOk(folderId)));
 
       // Chủ sửa mọi thứ (trừ ownerId, featured). Người được mời sửa chỉ cập nhật bộ đếm / thời gian.
       // Admin được sửa (ẩn khỏi công khai, nổi bật…) nhưng không đổi chủ.
@@ -182,9 +195,14 @@ service cloud.firestore {
           || (isModerator()
               && request.resource.data.diff(resource.data).affectedKeys()
                    .hasOnly(['visibility', 'featured', 'hidden', 'hiddenReason', 'hiddenBy', 'hiddenAt', 'updatedAt'])
-              && request.resource.data.get('featured', false) == false)
+              && request.resource.data.get('featured', false) == false
+              // chỉ được chuyển VỀ riêng tư, không được công khai thư mục của người khác
+              && (request.resource.data.visibility == resource.data.visibility
+                  || request.resource.data.visibility == 'private'))
           || (canWrite() && !touchesFeatured() && !touchesModeration() && (
-                isOwner(resource.data)
+                (isOwner(resource.data)
+                  && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerName', 'ownerPhoto'])
+                      || ownerInfoOk(request.resource.data)))
                 || (isEditor(resource.data)
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['questionCount', 'updatedAt']))
@@ -193,10 +211,20 @@ service cloud.firestore {
 
       allow delete: if isOwner(resource.data) || isAdmin();
 
+      function folder() {
+        return get(/databases/$(database)/documents/folders/$(folderId)).data;
+      }
+
+      // Danh sách email thật của người được mời: chỉ chủ thư mục / admin đọc & sửa.
+      match /private/{docId} {
+        allow read: if isOwner(folder()) || isAdmin();
+        allow write: if (isAdmin() || (isOwner(folder()) && canWrite()))
+          && request.resource.data.keys().hasOnly(['viewerEmails', 'editorEmails'])
+          && request.resource.data.viewerEmails is list && request.resource.data.viewerEmails.size() <= 100
+          && request.resource.data.editorEmails is list && request.resource.data.editorEmails.size() <= 100;
+      }
+
       match /questions/{questionId} {
-        function folder() {
-          return get(/databases/$(database)/documents/folders/$(folderId)).data;
-        }
 
         allow read: if canGet(folder()) || isModerator();
         allow create: if validQuestion(request.resource.data)
@@ -216,7 +244,23 @@ service cloud.firestore {
 
     /* ---------------- Người dùng ---------------- */
 
-    match /users/{uid}/{document=**} {
+    // Hồ sơ: email / tên / ảnh phải đúng với tài khoản đang đăng nhập (chống giả mạo để lừa admin cấp quyền).
+    function validProfile(d) {
+      return d.keys().hasOnly(['displayName', 'email', 'photoURL', 'isAnonymous', 'createdAt', 'lastLoginAt',
+          'dailyGoal', 'sessionCount', 'perfectCount', 'dismissedNotices', 'dismissedNotice', 'muteNotice',
+          'studyLayout', 'sheetStyle', 'theme', 'skin'])
+        && d.get('email', '') == myEmail()
+        && (d.get('displayName', '') == '' || d.get('displayName', '') == request.auth.token.get('name', ''))
+        && (d.get('photoURL', '') == '' || d.get('photoURL', '') == request.auth.token.get('picture', ''))
+        && d.get('isAnonymous', false) == isAnon();
+    }
+
+    match /users/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow write: if signedIn() && request.auth.uid == uid && validProfile(request.resource.data);
+    }
+
+    match /users/{uid}/{col}/{document=**} {
       allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
       allow write: if signedIn() && request.auth.uid == uid;
     }
@@ -266,11 +310,11 @@ service cloud.firestore {
       let df = after.get('folders', 0) - before.get('folders', 0);
       let dq = after.get('questions', 0) - before.get('questions', 0);
       let f = after.get('lastFolder', '');
-      return after.keys().hasOnly(['folders', 'questions', 'lastFolder'])
+      return after.keys().hasOnly(['folders', 'questions', 'lastFolder', 'lastQFolder'])
         && after.get('folders', 0) >= 0
         && (
           (df == 0 && f == before.get('lastFolder', '')
-            && (request.auth.uid == uid || dq > 0 || dq == -1))
+            && (request.auth.uid == uid || otherQuestionChangeOk(uid, after.get('lastQFolder', ''), dq)))
           || (df == 1 && dq == 0 && request.auth.uid == uid
             && !exists(docPath('folders', f)) && existsAfter(docPath('folders', f))
             && getAfter(docPath('folders', f)).data.ownerId == uid)
@@ -278,6 +322,16 @@ service cloud.firestore {
             && exists(docPath('folders', f)) && !existsAfter(docPath('folders', f))
             && get(docPath('folders', f)).data.ownerId == uid)
         );
+    }
+
+    // Người khác (người được mời sửa / kiểm duyệt viên) chỉ được đổi bộ đếm câu hỏi của chủ khi
+    // đồng thời thêm / xóa đúng số câu đó trong một thư mục của chủ (bộ đếm của thư mục đổi khớp).
+    function otherQuestionChangeOk(uid, qf, dq) {
+      return qf != '' && dq != 0
+        && exists(docPath('folders', qf))
+        && get(docPath('folders', qf)).data.ownerId == uid
+        && (isModerator() || isEditor(get(docPath('folders', qf)).data))
+        && getAfter(docPath('folders', qf)).data.questionCount - get(docPath('folders', qf)).data.questionCount == dq;
     }
 
     match /bans/{uid} {

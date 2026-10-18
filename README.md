@@ -1,5 +1,10 @@
 # Cú Học Bài – Web trắc nghiệm
 
+Bản chạy thật:
+- Firebase Hosting: https://trac-nghiem-4804e.web.app
+- GitHub Pages: https://thangvannguyen.github.io/trac-nghiem/ (tự deploy khi push lên `main`, xem `.github/workflows/pages.yml`)
+
+
 Tạo thư mục câu hỏi trắc nghiệm, tự học / kiểm tra / ôn câu sai, chia sẻ riêng tư – qua link – công khai.
 React + Vite + Tailwind + Firebase (Auth Google, Firestore realtime, Hosting).
 
@@ -20,8 +25,10 @@ npm run test:rules   # test Security Rules (cần Java để chạy Firestore em
 ```bash
 firebase login
 npm run build
-firebase deploy      # hosting + firestore.rules + firestore.indexes.json
+firebase deploy --only hosting,firestore   # web + firestore.rules + firestore.indexes.json
 ```
+Dự án dùng gói Firebase miễn phí (Spark) nên **không** deploy Cloud Functions (thông báo đẩy đang tắt).
+GitHub Pages tự build lại mỗi lần push lên nhánh `main`.
 Web chạy tại https://trac-nghiem-4804e.web.app. Index Firestore cần vài phút để build sau lần deploy đầu.
 
 ## Định dạng "Thêm nhanh"

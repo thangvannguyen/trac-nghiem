@@ -2,9 +2,10 @@ import { useState } from 'react';
 import Modal from './Modal';
 import { OwnerToggle, VisibilityPicker } from './FolderDialog';
 import { useAuth } from '../lib/auth';
+import { siteUrl } from '../lib/basePath';
 import { useToast } from './Toast';
 import { IconCopy, IconEdit, IconEye, IconTrash, IconUsers } from '../icons';
-import { setShowOwner, updateFolder } from '../lib/folders';
+import { saveSharing, setShowOwner, updateFolder, useSharing, type Sharing } from '../lib/folders';
 import type { Folder } from '../lib/types';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -14,7 +15,7 @@ export default function ShareDialog({ folder, onClose }: { folder: Folder; onClo
   const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'viewer' | 'editor'>('viewer');
-  const url = `${window.location.origin}/f/${folder.id}`;
+  const url = siteUrl(`f/${folder.id}`);
 
   const save = async (patch: Parameters<typeof updateFolder>[1], msg: string) => {
     try {
@@ -26,19 +27,31 @@ export default function ShareDialog({ folder, onClose }: { folder: Folder; onClo
     }
   };
 
+  // Danh sách email thật chỉ chủ thư mục / admin đọc được; thư mục chỉ lưu mã băm.
+  const sharing = useSharing(folder.id);
+  const share = async (next: Sharing, msg: string) => {
+    try {
+      await saveSharing(folder.id, next);
+      toast(msg);
+    } catch (e) {
+      console.error(e);
+      toast('Không lưu được, thử lại nhé!', 'error');
+    }
+  };
+
   const invite = async () => {
     const e = email.trim().toLowerCase();
     if (!EMAIL_RE.test(e)) return toast('Email chưa đúng định dạng', 'error');
-    const viewers = folder.viewerEmails.filter((x) => x !== e);
-    const editors = folder.editorEmails.filter((x) => x !== e);
+    const viewers = sharing.viewerEmails.filter((x) => x !== e);
+    const editors = sharing.editorEmails.filter((x) => x !== e);
     (role === 'editor' ? editors : viewers).push(e);
-    await save({ viewerEmails: viewers, editorEmails: editors }, `Đã mời ${e}`);
+    await share({ viewerEmails: viewers, editorEmails: editors }, `Đã mời ${e}`);
     setEmail('');
   };
 
   const people = [
-    ...folder.editorEmails.map((e) => ({ email: e, role: 'editor' as const })),
-    ...folder.viewerEmails.map((e) => ({ email: e, role: 'viewer' as const })),
+    ...sharing.editorEmails.map((e) => ({ email: e, role: 'editor' as const })),
+    ...sharing.viewerEmails.map((e) => ({ email: e, role: 'viewer' as const })),
   ];
 
   return (
@@ -137,10 +150,10 @@ export default function ShareDialog({ folder, onClose }: { folder: Folder; onClo
                     className="btn-ghost p-1.5 text-rose-500"
                     aria-label={`Xóa ${p.email}`}
                     onClick={() =>
-                      save(
+                      share(
                         {
-                          viewerEmails: folder.viewerEmails.filter((x) => x !== p.email),
-                          editorEmails: folder.editorEmails.filter((x) => x !== p.email),
+                          viewerEmails: sharing.viewerEmails.filter((x) => x !== p.email),
+                          editorEmails: sharing.editorEmails.filter((x) => x !== p.email),
                         },
                         'Đã bỏ chia sẻ',
                       )

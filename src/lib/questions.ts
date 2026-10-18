@@ -75,7 +75,7 @@ export async function addQuestions(folderId: string, ownerId: string, uid: strin
       });
     });
     batch.update(doc(db, 'folders', folderId), { questionCount: increment(chunk.length), updatedAt: serverTimestamp() });
-    batch.set(doc(db, 'usage', ownerId), { questions: increment(chunk.length) }, { merge: true });
+    batch.set(doc(db, 'usage', ownerId), { questions: increment(chunk.length), lastQFolder: folderId }, { merge: true });
     await batch.commit();
   }
   track('add_questions', { count: inputs.length });
@@ -96,7 +96,7 @@ export async function deleteQuestion(folderId: string, ownerId: string, question
   const batch = writeBatch(db);
   batch.delete(doc(db, 'folders', folderId, 'questions', questionId));
   batch.update(doc(db, 'folders', folderId), { questionCount: increment(-1), updatedAt: serverTimestamp() });
-  batch.set(doc(db, 'usage', ownerId), { questions: increment(-1) }, { merge: true });
+  batch.set(doc(db, 'usage', ownerId), { questions: increment(-1), lastQFolder: folderId }, { merge: true });
   await batch.commit();
 }
 

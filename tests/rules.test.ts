@@ -1,4 +1,8 @@
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+
+// Mã băm email giống src/lib/emailKey.ts (SHA-256 hex chữ hoa).
+const key = (e: string) => createHash('sha256').update(e.toLowerCase()).digest('hex').toUpperCase();
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import {
   assertFails,
@@ -19,15 +23,15 @@ const folder = (over: Record<string, unknown> = {}) => ({
   color: 'lilac',
   icon: 'book',
   visibility: 'private',
-  viewerEmails: ['viewer@x.com'],
-  editorEmails: ['editor@x.com'],
+  viewerKeys: [key('viewer@x.com')],
+  editorKeys: [key('editor@x.com')],
   questionCount: 0,
   ...over,
 });
 
 const question = { text: 'Q?', options: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }], correctIds: ['a'], note: '', order: 0, createdBy: 'alice' };
 
-const as = (uid: string, email: string) => env.authenticatedContext(uid, { email }).firestore();
+const as = (uid: string, email: string) => env.authenticatedContext(uid, { email, email_verified: true }).firestore();
 const guest = () => env.unauthenticatedContext().firestore();
 
 beforeAll(async () => {
@@ -65,14 +69,14 @@ describe('folders', () => {
   it('người được mời đọc & liệt kê được thư mục private', async () => {
     const db = as('bob', 'Viewer@x.com');
     await assertSucceeds(getDoc(doc(db, 'folders/priv')));
-    await assertSucceeds(getDocs(query(collection(db, 'folders'), where('viewerEmails', 'array-contains', 'viewer@x.com'))));
+    await assertSucceeds(getDocs(query(collection(db, 'folders'), where('viewerKeys', 'array-contains', key('viewer@x.com')))));
     await assertFails(getDoc(doc(as('eve', 'eve@x.com'), 'folders/priv')));
   });
 
   it('chỉ đăng nhập mới tạo được thư mục, và phải là của mình', async () => {
     await assertFails(setDoc(doc(guest(), 'folders/n1'), folder({ ownerId: 'x' })));
     await assertFails(setDoc(doc(as('bob', 'b@x.com'), 'folders/n2'), folder()));
-    await assertSucceeds(setDoc(doc(as('alice', 'a@x.com'), 'folders/n3'), folder({ viewerEmails: [], editorEmails: [] })));
+    await assertSucceeds(setDoc(doc(as('alice', 'a@x.com'), 'folders/n3'), folder({ viewerKeys: [], editorKeys: [] })));
   });
 
   it('editor chỉ đổi được bộ đếm, không đổi được quyền chia sẻ', async () => {
@@ -135,7 +139,7 @@ describe('phân quyền admin', () => {
 
   it('bị khóa thì không tạo được thư mục', async () => {
     await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'bans/alice'), { reason: 'spam' }));
-    await assertFails(setDoc(doc(as('alice', 'a@x.com'), 'folders/n9'), folder({ viewerEmails: [], editorEmails: [] })));
+    await assertFails(setDoc(doc(as('alice', 'a@x.com'), 'folders/n9'), folder({ viewerKeys: [], editorKeys: [] })));
   });
 
   it('chế độ bảo trì chặn user thường, admin vẫn sửa được', async () => {
@@ -146,7 +150,7 @@ describe('phân quyền admin', () => {
 
   it('khách ẩn danh lưu được tiến độ của mình nhưng không tạo thư mục', async () => {
     await assertSucceeds(setDoc(doc(anon(), 'users/anon1/progress/pub'), { stats: {} }));
-    await assertFails(setDoc(doc(anon(), 'folders/a1'), folder({ ownerId: 'anon1', viewerEmails: [], editorEmails: [] })));
+    await assertFails(setDoc(doc(anon(), 'folders/a1'), folder({ ownerId: 'anon1', viewerKeys: [], editorKeys: [] })));
   });
 });
 
@@ -155,7 +159,7 @@ describe('hạn mức thư mục / câu hỏi', () => {
     const { writeBatch, increment } = await import('firebase/firestore');
     const b = writeBatch(db);
     b.set(doc(db, `usage/${uid}`), { folders: increment(1), lastFolder: id }, { merge: true });
-    b.set(doc(db, `folders/${id}`), folder({ ownerId: uid, viewerEmails: [], editorEmails: [] }));
+    b.set(doc(db, `folders/${id}`), folder({ ownerId: uid, viewerKeys: [], editorKeys: [] }));
     return b.commit();
   };
 
@@ -166,7 +170,7 @@ describe('hạn mức thư mục / câu hỏi', () => {
   });
 
   it('không tạo thư mục mà không tăng bộ đếm', async () => {
-    await assertFails(setDoc(doc(as('carl', 'c@x.com'), 'folders/x1'), folder({ ownerId: 'carl', viewerEmails: [], editorEmails: [] })));
+    await assertFails(setDoc(doc(as('carl', 'c@x.com'), 'folders/x1'), folder({ ownerId: 'carl', viewerKeys: [], editorKeys: [] })));
   });
 
   it('không tự giảm bộ đếm thư mục', async () => {

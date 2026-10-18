@@ -14,6 +14,7 @@ import {
 import { collection, doc, getDocs, increment, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { auth, db, googleProvider } from './firebase';
 import { track } from './analytics';
+import { emailKey as hashEmail } from './emailKey';
 
 interface AuthState {
   /** Người dùng đã đăng nhập Google (null nếu là khách). */
@@ -23,6 +24,8 @@ interface AuthState {
   isGuest: boolean;
   loading: boolean;
   email: string;
+  /** Mã băm email đã xác minh (dùng để kiểm tra quyền được mời). */
+  emailKey: string;
   signIn: () => Promise<void>;
   logOut: () => Promise<void>;
 }
@@ -142,12 +145,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const user = current && !current.isAnonymous ? current : null;
+  // Chỉ công nhận email đã xác minh (khớp với luật bảo mật).
+  const verifiedEmail = user?.emailVerified ? (user.email ?? '').toLowerCase() : '';
+  const [key, setKey] = useState('');
+  useEffect(() => {
+    let alive = true;
+    hashEmail(verifiedEmail).then((k) => alive && setKey(k));
+    return () => {
+      alive = false;
+    };
+  }, [verifiedEmail]);
   const value: AuthState = {
     user,
     uid: current?.uid,
     isGuest: !user,
     loading,
-    email: (user?.email ?? '').toLowerCase(),
+    email: verifiedEmail,
+    emailKey: key,
     signIn,
     logOut: () => signOut(auth),
   };

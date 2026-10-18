@@ -19,6 +19,7 @@ import {
 import type { User } from 'firebase/auth';
 import { db } from './firebase';
 import { track } from './analytics';
+import { emailKey } from './emailKey';
 import type { Folder, FolderColor, FolderIconName, Role, Visibility } from './types';
 
 export const foldersCol = collection(db, 'folders');
@@ -85,12 +86,13 @@ export function useMyFolders(uid: string | undefined) {
   );
 }
 
-export function useSharedFolders(email: string) {
-  const asViewer = useFolderQuery(email ? `v:${email}` : null, () =>
-    query(foldersCol, where('viewerEmails', 'array-contains', email), orderBy('updatedAt', 'desc')),
+/** Thư mục được chia sẻ với tôi – tra theo mã băm email (emailKey), không theo email thật. */
+export function useSharedFolders(key: string) {
+  const asViewer = useFolderQuery(key ? `v:${key}` : null, () =>
+    query(foldersCol, where('viewerKeys', 'array-contains', key), orderBy('updatedAt', 'desc')),
   );
-  const asEditor = useFolderQuery(email ? `e:${email}` : null, () =>
-    query(foldersCol, where('editorEmails', 'array-contains', email), orderBy('updatedAt', 'desc')),
+  const asEditor = useFolderQuery(key ? `e:${key}` : null, () =>
+    query(foldersCol, where('editorKeys', 'array-contains', key), orderBy('updatedAt', 'desc')),
   );
   const seen = new Set<string>();
   const data = [...asEditor.data, ...asViewer.data].filter((f) => (seen.has(f.id) ? false : seen.add(f.id)));
@@ -118,13 +120,47 @@ export function useFolder(id: string | undefined, authKey: string): FolderState 
   return state;
 }
 
-export function roleOf(folder: Folder, user: User | null): Role {
+export function roleOf(folder: Folder, user: User | null, key = ''): Role {
   if (!user) return 'guest';
   if (folder.ownerId === user.uid) return 'owner';
-  const email = (user.email ?? '').toLowerCase();
-  if (folder.editorEmails.includes(email)) return 'editor';
-  if (folder.viewerEmails.includes(email)) return 'viewer';
+  if (key && (folder.editorKeys ?? []).includes(key)) return 'editor';
+  if (key && (folder.viewerKeys ?? []).includes(key)) return 'viewer';
   return 'guest';
+}
+
+/* ---------------- Danh sách email được mời (chỉ chủ thư mục / admin đọc được) ---------------- */
+
+export interface Sharing {
+  viewerEmails: string[];
+  editorEmails: string[];
+}
+
+const sharingRef = (folderId: string) => doc(db, 'folders', folderId, 'private', 'sharing');
+
+export function useSharing(folderId: string) {
+  const [state, setState] = useState<Sharing>({ viewerEmails: [], editorEmails: [] });
+  useEffect(
+    () =>
+      onSnapshot(
+        sharingRef(folderId),
+        (s) => setState({ viewerEmails: s.data()?.viewerEmails ?? [], editorEmails: s.data()?.editorEmails ?? [] }),
+        (e) => console.error(e),
+      ),
+    [folderId],
+  );
+  return state;
+}
+
+/** Lưu danh sách mời: email thật vào tài liệu riêng, mã băm vào thư mục – trong cùng 1 batch. */
+export async function saveSharing(folderId: string, s: Sharing) {
+  const [viewerKeys, editorKeys] = await Promise.all([
+    Promise.all(s.viewerEmails.map(emailKey)),
+    Promise.all(s.editorEmails.map(emailKey)),
+  ]);
+  const batch = writeBatch(db);
+  batch.set(sharingRef(folderId), s);
+  batch.update(doc(db, 'folders', folderId), { viewerKeys, editorKeys, updatedAt: serverTimestamp() });
+  await batch.commit();
 }
 
 export interface FolderInput {
@@ -150,8 +186,8 @@ export async function createFolder(user: User, input: FolderInput) {
     // Ẩn danh thì không lưu tên/ảnh vào thư mục, để người xem không đọc được.
     ownerName: input.showOwner ? (user.displayName ?? '') : '',
     ownerPhoto: input.showOwner ? (user.photoURL ?? '') : '',
-    viewerEmails: [],
-    editorEmails: [],
+    viewerKeys: [],
+    editorKeys: [],
     questionCount: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -163,7 +199,7 @@ export async function createFolder(user: User, input: FolderInput) {
 
 export function updateFolder(
   id: string,
-  patch: Partial<FolderInput & { viewerEmails: string[]; editorEmails: string[]; ownerName: string; ownerPhoto: string }>,
+  patch: Partial<FolderInput & { ownerName: string; ownerPhoto: string }>,
 ) {
   return updateDoc(doc(db, 'folders', id), { ...patch, updatedAt: serverTimestamp() });
 }
