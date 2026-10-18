@@ -11,7 +11,13 @@ import {
   signOut,
   type User,
 } from 'firebase/auth';
-import { collection, doc, getDocs, increment, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  increment,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { getDocs, setDoc, writeBatch } from './fs'; // có đếm quota ước tính
 import { auth, db, googleProvider } from './firebase';
 import { track } from './analytics';
 import { emailKey as hashEmail } from './emailKey';

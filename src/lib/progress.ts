@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { doc, increment, onSnapshot, setDoc } from 'firebase/firestore';
+import {
+  doc,
+  increment,
+} from 'firebase/firestore';
+import { onSnapshot, setDoc } from './fs'; // có đếm quota ước tính
 import { db } from './firebase';
 import type { ProgressStats, Question } from './types';
 import { recordActivity } from './stats';

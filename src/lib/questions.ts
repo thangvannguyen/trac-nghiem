@@ -3,12 +3,11 @@ import {
   collection,
   doc,
   increment,
-  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
-  writeBatch,
 } from 'firebase/firestore';
+import { onSnapshot, writeBatch } from './fs'; // có đếm quota ước tính
 import { db } from './firebase';
 import { track } from './analytics';
 import type { Option, Question } from './types';

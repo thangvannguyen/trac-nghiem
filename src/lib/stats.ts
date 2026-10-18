@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
-  addDoc,
   collection,
   doc,
-  getDoc,
   increment,
   limit,
-  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   where,
 } from 'firebase/firestore';
+import { addDoc, getDoc, onSnapshot, setDoc } from './fs'; // có đếm quota ước tính
 import { db } from './firebase';
 import { track } from './analytics';
 import type { ProgressStats } from './types';

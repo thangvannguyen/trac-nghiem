@@ -305,7 +305,7 @@ service cloud.firestore {
     }
 
     function validUsageChange(uid) {
-      let before = resource == null ? {} : resource.data;
+      let before = request.method == 'create' ? {} : resource.data;
       let after = request.resource.data;
       let df = after.get('folders', 0) - before.get('folders', 0);
       let dq = after.get('questions', 0) - before.get('questions', 0);
@@ -366,6 +366,21 @@ service cloud.firestore {
     match /adminLogs/{id} {
       allow read: if isAdmin();
       allow create: if isModerator() && request.resource.data.by == request.auth.uid;
+    }
+
+    // Số đếm ƯỚC TÍNH lượt đọc / ghi / xóa theo ngày quota. Trình duyệt chỉ được CỘNG THÊM (tối đa 20.000 / lần),
+    // không được giảm hay ghi trường khác. Chỉ admin đọc.
+    function quotaIncOk(f) {
+      let before = request.method == 'create' ? 0 : resource.data.get(f, 0);
+      let after = request.resource.data.get(f, 0);
+      return after is int && after >= before && after - before <= 20000;
+    }
+
+    match /quotaStats/{day} {
+      allow read: if isAdmin();
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['reads', 'writes', 'deletes', 'updatedAt'])
+        && quotaIncOk('reads') && quotaIncOk('writes') && quotaIncOk('deletes');
     }
 
     // Danh sách kiểm duyệt viên: chỉ admin cấp / thu hồi.

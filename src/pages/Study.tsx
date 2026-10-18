@@ -5,7 +5,10 @@ import { useQuestions } from '../lib/questions';
 import { reviewQueue, shuffle, useProgress } from '../lib/progress';
 import { logSession, useUserDoc } from '../lib/stats';
 import { useSite } from '../lib/site';
-import { doc, setDoc } from 'firebase/firestore';
+import {
+  doc,
+} from 'firebase/firestore';
+import { setDoc } from '../lib/fs'; // có đếm quota ước tính
 import { db } from '../lib/firebase';
 import type { Folder, Option, Question } from '../lib/types';
 import FolderGate from '../components/FolderGate';

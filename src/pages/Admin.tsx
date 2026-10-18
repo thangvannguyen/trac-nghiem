@@ -28,6 +28,7 @@ import { LoginPrompt } from '../components/LoginButton';
 import NotFound from './NotFound';
 import AdminOverview from './AdminOverview';
 import QuestionsTab from './AdminQuestions';
+import AdminResources from './AdminResources';
 import { grantModerator, hideFolder, revokeModerator, unhideFolder, useModerators } from '../lib/moderation';
 import Switch from '../components/Switch';
 import SkinPicker from '../components/SkinPicker';
@@ -42,6 +43,7 @@ import { ChartCard } from '../components/charts';
 import {
   IconBan,
   IconChart,
+  IconDatabase,
   IconEye,
   IconFolder,
   IconList,
@@ -83,6 +85,7 @@ export default function Admin() {
 // adminOnly: kiểm duyệt viên chỉ thấy các tab Câu hỏi & Thư mục.
 const TABS = [
   { to: '', label: 'Tổng quan', Icon: IconChart, adminOnly: true },
+  { to: 'resources', label: 'Tài nguyên', Icon: IconDatabase, adminOnly: true },
   { to: 'users', label: 'Người dùng', Icon: IconUsers, adminOnly: true },
   { to: 'questions', label: 'Câu hỏi', Icon: IconShield, adminOnly: false },
   { to: 'folders', label: 'Thư mục', Icon: IconFolder, adminOnly: false },
@@ -130,6 +133,7 @@ function AdminShell({ me }: { me: User }) {
             <Route path="notices" element={<NoticesTab me={me} />} />
             <Route path="settings" element={<SettingsTab me={me} />} />
             <Route path="logs" element={<LogsTab />} />
+            <Route path="resources" element={<AdminResources />} />
           </>
         ) : (
           <Route path="*" element={<Navigate to="questions" replace />} />

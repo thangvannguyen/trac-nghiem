@@ -1,4 +1,5 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { setMeterEnabled } from './quotaMeter';
 import { useAuth } from './auth';
 import { DEFAULT_CONFIG, useAppConfig, useMyRole, type AppConfig, type RoleState } from './admin';
 
@@ -21,6 +22,8 @@ const SiteContext = createContext<SiteState>({
 export function SiteProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { config, loaded: configLoaded } = useAppConfig();
+  // Đếm quota ước tính chỉ khi admin bật (và đã tải xong cấu hình).
+  useEffect(() => setMeterEnabled(configLoaded && config.quotaTracking), [configLoaded, config.quotaTracking]);
   const role = useMyRole(user);
   const canWrite = !!user && (role.isAdmin || (!role.banned && !config.readOnly));
   return <SiteContext.Provider value={{ config, configLoaded, role, canWrite }}>{children}</SiteContext.Provider>;

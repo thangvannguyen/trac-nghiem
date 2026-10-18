@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import {
+  doc,
+} from 'firebase/firestore';
+import { setDoc } from './fs'; // có đếm quota ước tính
 import { db } from './firebase';
 import { useAuth } from './auth';
 import { useUserDoc } from './stats';

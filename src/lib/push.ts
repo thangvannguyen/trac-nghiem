@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { deleteToken, getMessaging, getToken, isSupported } from 'firebase/messaging';
-import { collection, deleteDoc, doc, getCountFromServer, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { deleteDoc, getCountFromServer, getDoc, setDoc } from './fs'; // có đếm quota ước tính
 import { app, db } from './firebase';
 import { BASE } from './basePath';
 import { track } from './analytics';

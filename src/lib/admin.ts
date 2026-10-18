@@ -1,21 +1,16 @@
 import { useEffect, useState } from 'react';
 import {
-  addDoc,
   collection,
   collectionGroup,
-  deleteDoc,
   doc,
-  getCountFromServer,
   limit,
-  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
-  updateDoc,
   where,
   type Timestamp,
 } from 'firebase/firestore';
+import { addDoc, deleteDoc, getCountFromServer, onSnapshot, setDoc, updateDoc } from './fs'; // có đếm quota ước tính
 import type { User } from 'firebase/auth';
 import { db } from './firebase';
 import { addDays, dayKey, type DayStat, type Session } from './stats';
@@ -49,6 +44,8 @@ export interface AppConfig {
   skinNames: SkinNames;
   /** Kiểu chú cú dùng cho từng theme (màu cú vẫn theo theme). */
   skinMascots: SkinMascots;
+  /** Có đếm ước tính lượt đọc / ghi / xóa Firestore hay không (tốn ~1 lượt ghi / người / 10 phút). */
+  quotaTracking: boolean;
 }
 
 export type StudyLayout = 'one' | 'all';
@@ -63,6 +60,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   allowUserSkin: false,
   skinNames: {},
   skinMascots: {},
+  quotaTracking: true,
 };
 
 export function useAppConfig() {
@@ -84,6 +82,7 @@ export function useAppConfig() {
             allowUserSkin: d.allowUserSkin === true,
             skinNames: (d.skinNames && typeof d.skinNames === 'object' ? d.skinNames : {}) as SkinNames,
             skinMascots: (d.skinMascots && typeof d.skinMascots === 'object' ? d.skinMascots : {}) as SkinMascots,
+            quotaTracking: d.quotaTracking !== false,
           });
           setLoaded(true);
         },

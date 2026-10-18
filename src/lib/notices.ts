@@ -1,20 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
-  addDoc,
   collection,
-  deleteDoc,
   doc,
-  getCountFromServer,
   increment,
-  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
-  updateDoc,
   where,
   type Timestamp,
 } from 'firebase/firestore';
+import { addDoc, deleteDoc, getCountFromServer, onSnapshot, setDoc, updateDoc } from './fs'; // có đếm quota ước tính
 import type { User } from 'firebase/auth';
 import { db } from './firebase';
 import { siteUrl } from './basePath';

@@ -627,6 +627,14 @@ export const IconMonitor = (p: IconProps) => (
   </Line>
 );
 
+export const IconDatabase = (p: IconProps) => (
+  <Line {...p}>
+    <ellipse cx="12" cy="5.5" rx="7.5" ry="2.8" />
+    <path d="M4.5 5.5v6.5c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V5.5" />
+    <path d="M4.5 12v6.5c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V12" />
+  </Line>
+);
+
 export const IconChart = (p: IconProps) => (
   <Line {...p}>
     <path d="M4 20h16" />

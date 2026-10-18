@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import {
+  doc,
+} from 'firebase/firestore';
+import { setDoc } from '../lib/fs'; // có đếm quota ước tính
 import { db } from '../lib/firebase';
 import { useAuth } from '../lib/auth';
 import { useSite } from '../lib/site';

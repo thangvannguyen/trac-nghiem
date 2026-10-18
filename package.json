@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test:rules": "firebase emulators:exec --only firestore --project demo-trac-nghiem \"vitest run tests/rules.test.ts\"",
     "deploy": "npm run build && firebase deploy",
-    "test": "vitest run tests/parse.test.ts"
+    "test": "vitest run tests/parse.test.ts tests/meter.test.ts"
   },
   "dependencies": {
     "firebase": "^12.19.0",
