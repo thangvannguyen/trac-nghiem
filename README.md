@@ -39,3 +39,12 @@ A. Đáp án
 > Ghi chú / giải thích
 ```
 Mỗi câu cách nhau 1 dòng trống.
+
+## Bảo mật cấu hình
+- **Khóa API web** (`apiKey` trong `src/lib/firebase.ts`) chỉ dùng được từ các tên miền:
+  `trac-nghiem-4804e.web.app`, `trac-nghiem-4804e.firebaseapp.com`, `thangvannguyen.github.io`,
+  `localhost:5173`, `localhost:4173`, `127.0.0.1:5173`.
+  Thêm tên miền mới (vd. tên miền riêng) thì phải thêm vào:
+  Google Cloud Console → APIs & Services → Credentials → *Browser key (auto created by Firebase)* → Website restrictions,
+  và Firebase Console → Authentication → Settings → Authorized domains.
+- **Dependabot** tự mở pull request cập nhật thư viện mỗi tuần (`.github/dependabot.yml`) và cảnh báo lỗ hổng.
