@@ -1,0 +1,323 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myEmail() {
+      return signedIn() && request.auth.token.email is string
+        ? request.auth.token.email.lower()
+        : '';
+    }
+
+    /* ---------------- Phân quyền ---------------- */
+
+    // Admin gốc: cố định theo email, không ai thu hồi được (kể cả admin khác).
+    function isRootAdmin() {
+      return myEmail() == 'thagvip1@gmail.com' && request.auth.token.email_verified == true;
+    }
+
+    // Admin: admin gốc hoặc người được admin khác cấp quyền (có tài liệu trong /admins).
+    function isAdmin() {
+      return isRootAdmin()
+        || (signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // Kiểm duyệt viên: xem & kiểm duyệt mọi thư mục / câu hỏi (ẩn, gỡ công khai, xóa câu hỏi).
+    // Admin luôn có quyền kiểm duyệt.
+    function isModerator() {
+      return isAdmin()
+        || (signedIn() && exists(/databases/$(database)/documents/moderators/$(request.auth.uid)));
+    }
+
+    // Khách (tài khoản ẩn danh): chỉ được lưu tiến độ học của chính mình, không tạo nội dung.
+    function isAnon() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function isBanned() {
+      return signedIn() && exists(/databases/$(database)/documents/bans/$(request.auth.uid));
+    }
+
+    function readOnlyMode() {
+      return exists(/databases/$(database)/documents/config/app)
+        && get(/databases/$(database)/documents/config/app).data.get('readOnly', false) == true;
+    }
+
+    // Được tạo / sửa nội dung: admin luôn được; user thường thì phải đăng nhập Google,
+    // không bị khóa và web không ở chế độ bảo trì.
+    function canWrite() {
+      return isAdmin() || (signedIn() && !isAnon() && !isBanned() && !readOnlyMode());
+    }
+
+    /* ---------------- Hạn mức (số thư mục / số câu hỏi) ---------------- */
+    // limits/{uid}: hạn mức riêng do admin đặt (-1 hoặc không có = theo mặc định; 0 = không giới hạn).
+    // config/app.defaultMaxFolders / defaultMaxQuestions: mặc định cho mọi người (mặc định 5 / 100).
+    // usage/{uid}: bộ đếm đã dùng, luôn được cập nhật CÙNG LÚC (cùng batch) với thao tác tạo / xóa.
+
+    function docPath(c, id) {
+      return /databases/$(database)/documents/$(c)/$(id);
+    }
+
+    function configNum(field, fallback) {
+      return exists(docPath('config', 'app')) ? get(docPath('config', 'app')).data.get(field, fallback) : fallback;
+    }
+
+    function limitOf(uid, field, defField, fallback) {
+      return exists(docPath('limits', uid)) && get(docPath('limits', uid)).data.get(field, -1) >= 0
+        ? get(docPath('limits', uid)).data.get(field, -1)
+        : configNum(defField, fallback);
+    }
+
+    function maxFolders(uid) {
+      return limitOf(uid, 'maxFolders', 'defaultMaxFolders', 5);
+    }
+
+    function maxQuestions(uid) {
+      return limitOf(uid, 'maxQuestions', 'defaultMaxQuestions', 100);
+    }
+
+    function usageBefore(uid) {
+      return exists(docPath('usage', uid)) ? get(docPath('usage', uid)).data : {};
+    }
+
+    // Tạo thư mục: bộ đếm của chủ phải tăng đúng 1 cho chính thư mục này và không vượt hạn mức.
+    function folderQuotaOk(fid) {
+      let after = getAfter(docPath('usage', request.auth.uid)).data;
+      return after.get('lastFolder', '') == fid
+        && (maxFolders(request.auth.uid) == 0 || after.get('folders', 0) <= maxFolders(request.auth.uid));
+    }
+
+    // Thêm câu hỏi: bộ đếm câu hỏi của CHỦ thư mục phải tăng trong cùng lần ghi và không vượt hạn mức.
+    function questionQuotaOk(owner) {
+      let after = getAfter(docPath('usage', owner)).data.get('questions', 0);
+      return after > usageBefore(owner).get('questions', 0)
+        && (maxQuestions(owner) == 0 || after <= maxQuestions(owner));
+    }
+
+    /* ---------------- Thư mục ---------------- */
+
+    function isOwner(f) {
+      return signedIn() && f.ownerId == request.auth.uid;
+    }
+
+    function isEditor(f) {
+      return myEmail() != '' && myEmail() in f.editorEmails;
+    }
+
+    function isInvited(f) {
+      return myEmail() != '' && (myEmail() in f.viewerEmails || myEmail() in f.editorEmails);
+    }
+
+    // Đọc 1 thư mục theo ID: chủ, người được mời, hoặc thư mục có link / công khai.
+    function canGet(f) {
+      return f.visibility in ['link', 'public'] || isOwner(f) || isInvited(f);
+    }
+
+    // Liệt kê: KHÔNG gồm thư mục "link" để link bí mật không bị lộ.
+    function canList(f) {
+      return f.visibility == 'public' || isOwner(f) || isInvited(f);
+    }
+
+    function canEdit(f) {
+      return isOwner(f) || isEditor(f);
+    }
+
+    function validFolder(d) {
+      return d.name is string && d.name.size() > 0 && d.name.size() <= 100
+        && d.description is string && d.description.size() <= 1000
+        && d.visibility in ['private', 'link', 'public']
+        && d.viewerEmails is list && d.viewerEmails.size() <= 100
+        && d.editorEmails is list && d.editorEmails.size() <= 100
+        && d.questionCount is int;
+    }
+
+    function validQuestion(d) {
+      return d.text is string && d.text.size() > 0 && d.text.size() <= 5000
+        && d.options is list && d.options.size() >= 2 && d.options.size() <= 8
+        && d.correctIds is list && d.correctIds.size() >= 1 && d.correctIds.size() <= 8
+        && d.note is string && d.note.size() <= 10000
+        && d.order is number;
+    }
+
+    // Chỉ admin được đánh dấu "Nổi bật".
+    function touchesFeatured() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(['featured']);
+    }
+
+    // Các trường kiểm duyệt: chỉ kiểm duyệt viên / admin được thay đổi.
+    function touchesModeration() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['hidden', 'hiddenReason', 'hiddenBy', 'hiddenAt']);
+    }
+
+    // Thư mục bị kiểm duyệt ẩn thì luôn phải ở chế độ riêng tư.
+    function hiddenStaysPrivate() {
+      return request.resource.data.get('hidden', false) == false || request.resource.data.visibility == 'private';
+    }
+
+    match /folders/{folderId} {
+      allow get: if canGet(resource.data) || isModerator();
+      allow list: if canList(resource.data) || isModerator();
+
+      allow create: if canWrite()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.questionCount == 0
+        && request.resource.data.get('featured', false) == false
+        && request.resource.data.get('hidden', false) == false
+        && validFolder(request.resource.data)
+        && (isAdmin() || folderQuotaOk(folderId));
+
+      // Chủ sửa mọi thứ (trừ ownerId, featured). Người được mời sửa chỉ cập nhật bộ đếm / thời gian.
+      // Admin được sửa (ẩn khỏi công khai, nổi bật…) nhưng không đổi chủ.
+      // Kiểm duyệt viên chỉ được ẩn / bỏ ẩn, gỡ công khai, bỏ nổi bật.
+      allow update: if validFolder(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && hiddenStaysPrivate()
+        && (
+          isAdmin()
+          || (isModerator()
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['visibility', 'featured', 'hidden', 'hiddenReason', 'hiddenBy', 'hiddenAt', 'updatedAt'])
+              && request.resource.data.get('featured', false) == false)
+          || (canWrite() && !touchesFeatured() && !touchesModeration() && (
+                isOwner(resource.data)
+                || (isEditor(resource.data)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['questionCount', 'updatedAt']))
+              ))
+        );
+
+      allow delete: if isOwner(resource.data) || isAdmin();
+
+      match /questions/{questionId} {
+        function folder() {
+          return get(/databases/$(database)/documents/folders/$(folderId)).data;
+        }
+
+        allow read: if canGet(folder()) || isModerator();
+        allow create: if validQuestion(request.resource.data)
+          && request.resource.data.get('hidden', false) == false
+          && (isAdmin() || (canWrite() && canEdit(folder()) && questionQuotaOk(folder().ownerId)));
+        // Chủ / người sửa: sửa nội dung nhưng không đụng trường kiểm duyệt. Kiểm duyệt viên: chỉ ẩn / bỏ ẩn.
+        allow update: if validQuestion(request.resource.data)
+          && (
+            isAdmin()
+            || (isModerator() && request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['hidden', 'hiddenReason', 'hiddenBy', 'hiddenAt']))
+            || (canWrite() && canEdit(folder()) && !touchesModeration())
+          );
+        allow delete: if isModerator() || (canWrite() && canEdit(folder()));
+      }
+    }
+
+    /* ---------------- Người dùng ---------------- */
+
+    match /users/{uid}/{document=**} {
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Admin thống kê toàn hệ thống (truy vấn collection group).
+    match /{path=**}/days/{day} {
+      allow read: if isAdmin();
+    }
+    match /{path=**}/questions/{q} {
+      allow read: if isModerator();
+    }
+    match /{path=**}/sessions/{s} {
+      allow read: if isAdmin();
+    }
+
+    /* ---------------- Quản trị ---------------- */
+
+    // Danh sách admin. Chỉ admin cấp / thu hồi; không tự thu hồi chính mình.
+    match /admins/{uid} {
+      allow get: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin() && request.auth.uid != uid;
+    }
+
+    // Tài khoản bị khóa quyền tạo / sửa nội dung.
+    // Hạn mức riêng: chỉ admin đặt; chủ tài khoản đọc được của mình.
+    match /limits/{uid} {
+      allow get: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow list, write: if isAdmin();
+    }
+
+    // Bộ đếm đã dùng. Admin sửa tự do (đồng bộ lại). Người dùng chỉ được thay đổi đúng theo thao tác:
+    //  • +1 thư mục khi chính họ tạo thư mục (lastFolder = thư mục mới, cùng batch)
+    //  • −1 thư mục (kèm trừ số câu) khi thư mục của họ bị xóa trong cùng batch
+    //  • số câu: chủ tăng / giảm; người được mời sửa chỉ được tăng hoặc giảm 1
+    match /usage/{uid} {
+      allow get: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow list: if isAdmin();
+      allow delete: if isAdmin();
+      allow create, update: if isAdmin() || (signedIn() && validUsageChange(uid));
+    }
+
+    function validUsageChange(uid) {
+      let before = resource == null ? {} : resource.data;
+      let after = request.resource.data;
+      let df = after.get('folders', 0) - before.get('folders', 0);
+      let dq = after.get('questions', 0) - before.get('questions', 0);
+      let f = after.get('lastFolder', '');
+      return after.keys().hasOnly(['folders', 'questions', 'lastFolder'])
+        && after.get('folders', 0) >= 0
+        && (
+          (df == 0 && f == before.get('lastFolder', '')
+            && (request.auth.uid == uid || dq > 0 || dq == -1))
+          || (df == 1 && dq == 0 && request.auth.uid == uid
+            && !exists(docPath('folders', f)) && existsAfter(docPath('folders', f))
+            && getAfter(docPath('folders', f)).data.ownerId == uid)
+          || (df == -1 && dq <= 0
+            && exists(docPath('folders', f)) && !existsAfter(docPath('folders', f))
+            && get(docPath('folders', f)).data.ownerId == uid)
+        );
+    }
+
+    match /bans/{uid} {
+      allow get: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow list, write: if isAdmin();
+    }
+
+    // Cấu hình chung (thông báo, chế độ bảo trì…): ai cũng đọc, chỉ admin sửa.
+    match /config/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Danh sách thông báo: ai cũng đọc (để hiện), chỉ admin tạo / sửa / xóa.
+    match /announcements/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Token thông báo đẩy của từng thiết bị. Chủ thiết bị tự đăng ký / hủy; admin chỉ đếm.
+    // Cloud Function gửi thông báo dùng quyền server nên không bị luật này giới hạn.
+    match /pushTokens/{token} {
+      allow get: if signedIn() && (resource == null || resource.data.uid == request.auth.uid);
+      allow list: if isAdmin();
+      allow create, update: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'guest', 'ua', 'updatedAt']);
+      allow delete: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+    }
+
+    // Nhật ký thao tác của admin: chỉ thêm, không sửa / xóa.
+    match /adminLogs/{id} {
+      allow read: if isAdmin();
+      allow create: if isModerator() && request.resource.data.by == request.auth.uid;
+    }
+
+    // Danh sách kiểm duyệt viên: chỉ admin cấp / thu hồi.
+    match /moderators/{uid} {
+      allow get: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow list, write: if isAdmin();
+    }
+  }
+}

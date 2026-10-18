@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Bảng màu dạng biến (giá trị "R G B") cho 2 chế độ. data-theme trên <html> do ThemeSync đặt
+ * theo cài đặt của người dùng (Sáng / Tối / Theo hệ thống).
+ */
+:root {
+  color-scheme: light;
+  --cream: 255 249 242;
+  --ink: 59 51 85;
+  --surface: 255 255 255;
+  --shadow: 59 51 85;
+  --lemonink: 154 116 0;
+  /* Theme (skin) – màu chủ đạo dùng chung token "lilac"; mặc định là theme Cú Học Bài */
+  --primary-shadow: 106 79 208;
+  --bg-a: var(--lilac-100); --bg-b: var(--mint-100); --bg-c: var(--peach-100);
+  --owl-body: #C5AEFF; --owl-wing: #AE90FA; --owl-belly: #EEE6FF;
+  /* Nút chế độ Kiểm tra / Ôn tập – mỗi theme chọn màu khác màu chủ đạo để 3 nút không lẫn nhau */
+  --btn-test: 255 138 101; --btn-test-shadow: 217 102 63;
+  --btn-review: 63 191 140; --btn-review-shadow: 44 154 111;
+  --peach-100: 255 232 220; --peach-300: 255 181 154; --peach-500: 255 138 101;
+  --mint-100: 221 247 236;  --mint-300: 143 224 190;  --mint-500: 63 191 140;
+  --sky-100: 224 240 255;   --sky-300: 156 203 255;   --sky-500: 77 158 245;
+  --lilac-100: 238 230 255; --lilac-300: 197 174 255; --lilac-500: 140 108 240;
+  --lemon-100: 255 246 204; --lemon-300: 255 226 122; --lemon-500: 245 197 24;
+  --rose-100: 255 227 234;  --rose-300: 255 168 188;  --rose-500: 242 100 127;
+  /* Biểu đồ (đã kiểm tra an toàn mù màu trên nền sáng) */
+  --c-lilac: #8C6CF0; --c-orange: #F08A4B; --c-teal: #15A3A3;
+  --c-neutral: #E4E0EE; --c-grid: #EFEBF5; --c-axis: #9A93AE; --c-surface: #FFFFFF; --c-ink: #3B3355;
+  --seq-0: #F1EEF7; --seq-1: #DCD1FB; --seq-2: #BBA6F7; --seq-3: #9A7EF1; --seq-4: #6E4FDB;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --cream: 20 17 30;
+  --ink: 236 232 245;
+  --surface: 34 29 48;
+  --shadow: 0 0 0;
+  --lemonink: 245 197 24;
+  --owl-belly: #E2D8FF;
+  --peach-100: 58 42 39;  --peach-300: 201 138 115; --peach-500: 255 138 101;
+  --mint-100: 31 51 48;   --mint-300: 79 165 133;   --mint-500: 63 191 140;
+  --sky-100: 31 45 66;    --sky-300: 92 143 204;    --sky-500: 92 168 245;
+  --lilac-100: 46 39 71;  --lilac-300: 125 104 194; --lilac-500: 140 108 240;
+  --lemon-100: 58 52 32;  --lemon-300: 184 155 62;  --lemon-500: 245 197 24;
+  --rose-100: 61 36 48;   --rose-300: 196 111 134;  --rose-500: 242 100 127;
+  /* Biểu đồ trên nền tối (đã kiểm tra riêng với nền #221D30) */
+  --c-lilac: #8C6CF0; --c-orange: #D4733A; --c-teal: #15A3A3;
+  --c-neutral: #3A3450; --c-grid: #322B45; --c-axis: #8F88A6; --c-surface: #221D30; --c-ink: #ECE8F5;
+  --seq-0: #2C2640; --seq-1: #5A4A99; --seq-2: #7259CC; --seq-3: #9479F2; --seq-4: #BCA6FF;
+}
+
+
+/*
+ * Theme (skin) do admin / người dùng chọn: đổi màu chủ đạo (token "lilac"), nền và chú cú.
+ * Mỗi theme có cả bản Sáng và Tối. Màu biểu đồ KHÔNG đổi theo theme (đã kiểm tra an toàn mù màu).
+ */
+
+/* Cú Học Dược – xanh lá thảo dược */
+:root[data-skin='herbal'] {
+  --lilac-100: 221 243 230; --lilac-300: 143 211 174; --lilac-500: 47 163 107;
+  --primary-shadow: 31 122 79;
+  --bg-a: 221 243 230; --bg-b: 255 246 204; --bg-c: 224 240 255;
+  --owl-body: #9ED9B5; --owl-wing: #7CC79C; --owl-belly: #E6F7EC;
+  --btn-review: 77 158 245; --btn-review-shadow: 47 118 200;
+}
+:root[data-skin='herbal'][data-theme='dark'] {
+  --lilac-100: 30 58 44; --lilac-300: 79 165 122; --lilac-500: 61 187 126;
+  --primary-shadow: 25 105 67;
+  --bg-a: 30 58 44; --bg-b: 58 52 32; --bg-c: 31 45 66;
+  --owl-belly: #D3F0DF;
+}
+
+/* Cú Chill – cam san hô hoàng hôn */
+:root[data-skin='chill'] {
+  --lilac-100: 255 230 224; --lilac-300: 255 179 166; --lilac-500: 236 106 84;
+  --primary-shadow: 196 76 58;
+  --bg-a: 255 230 224; --bg-b: 255 246 204; --bg-c: 255 227 234;
+  --owl-body: #FFB59A; --owl-wing: #F59A80; --owl-belly: #FFE8DC;
+  --btn-test: 140 108 240; --btn-test-shadow: 106 79 208;
+}
+:root[data-skin='chill'][data-theme='dark'] {
+  --lilac-100: 63 38 38; --lilac-300: 196 112 99; --lilac-500: 242 112 94;
+  --primary-shadow: 170 64 50;
+  --bg-a: 63 38 38; --bg-b: 58 52 32; --bg-c: 61 36 48;
+  --owl-belly: #FFDCCB;
+}
+
+
+/* Cú Học Y – xanh dương y khoa */
+:root[data-skin='medic'] {
+  --lilac-100: 223 236 252; --lilac-300: 147 190 240; --lilac-500: 43 123 214;
+  --primary-shadow: 28 92 168;
+  --bg-a: 223 236 252; --bg-b: 221 247 236; --bg-c: 238 230 255;
+  --owl-body: #A9CCF5; --owl-wing: #86B6EE; --owl-belly: #E3EFFD;
+}
+:root[data-skin='medic'][data-theme='dark'] {
+  --lilac-100: 28 44 66; --lilac-300: 82 132 196; --lilac-500: 77 150 235;
+  --primary-shadow: 30 90 160;
+  --bg-a: 28 44 66; --bg-b: 31 51 48; --bg-c: 46 39 71;
+  --owl-belly: #D6E6FB;
+}
+
+/* Cú YHCT – đỏ son trầm, vàng giấy cổ */
+:root[data-skin='yhct'] {
+  --lilac-100: 248 227 221; --lilac-300: 226 160 150; --lilac-500: 180 71 58;
+  --primary-shadow: 132 46 37;
+  --bg-a: 255 246 204; --bg-b: 248 227 221; --bg-c: 255 232 220;
+  --owl-body: #E2BD8F; --owl-wing: #C99A6A; --owl-belly: #F7E8D3;
+  --btn-test: 21 163 163; --btn-test-shadow: 14 125 125;
+}
+:root[data-skin='yhct'][data-theme='dark'] {
+  --lilac-100: 64 34 32; --lilac-300: 190 110 98; --lilac-500: 214 98 82;
+  --primary-shadow: 150 60 50;
+  --bg-a: 58 52 32; --bg-b: 64 34 32; --bg-c: 58 42 39;
+  --owl-belly: #F0DCC2;
+}
+
+/* Cú Quẩy – hồng neon sôi động */
+:root[data-skin='party'] {
+  --lilac-100: 255 224 240; --lilac-300: 255 160 205; --lilac-500: 227 57 143;
+  --primary-shadow: 176 30 104;
+  --bg-a: 255 224 240; --bg-b: 224 240 255; --bg-c: 255 246 204;
+  --owl-body: #FF9ACB; --owl-wing: #F57AB6; --owl-belly: #FFE3F1;
+  --btn-test: 77 158 245; --btn-test-shadow: 47 118 200;
+}
+:root[data-skin='party'][data-theme='dark'] {
+  --lilac-100: 66 30 52; --lilac-300: 200 90 150; --lilac-500: 240 80 160;
+  --primary-shadow: 170 40 110;
+  --bg-a: 66 30 52; --bg-b: 31 45 66; --bg-c: 58 52 32;
+  --owl-belly: #FFD3EA;
+}
+
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; }
+  body { @apply bg-cream text-ink font-sans antialiased; }
+  body {
+    background-image:
+      radial-gradient(circle at 10% 0%, rgb(var(--bg-a)) 0, transparent 35%),
+      radial-gradient(circle at 95% 15%, rgb(var(--bg-b)) 0, transparent 30%),
+      radial-gradient(circle at 50% 100%, rgb(var(--bg-c)) 0, transparent 40%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  :focus-visible { @apply outline-none ring-4 ring-lilac-300/60; }
+}
+
+@layer components {
+  /* Mọi nút cùng khung viền 2px (trong suốt nếu không cần) để cao bằng nhau khi đứng cạnh nhau. */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-transparent px-4 py-2 font-bold
+           transition active:translate-y-0.5 disabled:opacity-50 disabled:pointer-events-none select-none;
+  }
+  .btn-primary { @apply btn bg-lilac-500 text-white shadow-[0_4px_0_0_rgb(var(--primary-shadow))] hover:brightness-105 active:shadow-none; }
+  .btn-mint { @apply btn bg-mint-500 text-white shadow-[0_4px_0_0_#2C9A6F] hover:brightness-105 active:shadow-none; }
+  .btn-peach { @apply btn bg-peach-500 text-white shadow-[0_4px_0_0_#D9663F] hover:brightness-105 active:shadow-none; }
+  .btn-test { @apply btn text-white shadow-[0_4px_0_0_rgb(var(--btn-test-shadow))] hover:brightness-105 active:shadow-none; background: rgb(var(--btn-test)); }
+  .btn-review { @apply btn text-white shadow-[0_4px_0_0_rgb(var(--btn-review-shadow))] hover:brightness-105 active:shadow-none; background: rgb(var(--btn-review)); }
+  .btn-soft { @apply btn bg-surface text-ink border-ink/10 shadow-[0_4px_0_0_rgb(var(--shadow)/0.08)] hover:border-lilac-300 hover:bg-lilac-100/50 active:shadow-none; }
+  .btn-ghost { @apply btn px-2.5 text-ink/70 hover:bg-ink/5 hover:text-ink; }
+  .btn-danger { @apply btn bg-rose-100 text-rose-500 hover:bg-rose-300/50; }
+  .card { @apply rounded-blob bg-surface shadow-soft border border-ink/5; }
+  .input {
+    @apply w-full rounded-2xl border-2 border-ink/10 bg-surface px-4 py-2.5 text-ink placeholder:text-ink/35
+           focus:border-lilac-300 focus:outline-none focus:ring-4 focus:ring-lilac-100 transition;
+  }
+  .label { @apply mb-1.5 block text-sm font-extrabold text-ink/70; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold; }
+}
+
+@keyframes pop { 0% { transform: scale(.9); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+@keyframes bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+@keyframes shake { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-5px) } 75% { transform: translateX(5px) } }
+.animate-pop { animation: pop .18s ease-out }
+.animate-bob { animation: bob 2.8s ease-in-out infinite }
+.animate-shake { animation: shake .3s ease-in-out }
+
+/* In / Lưu PDF chế độ xem A4: chỉ in tờ đề (.print-area), đúng khổ A4. */
+@media print {
+  @page { size: A4; margin: 14mm 16mm; }
+  html, body { background: #fff !important; }
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0 auto auto 0; width: 100%; margin: 0 !important; padding: 0 !important; background: #fff !important; overflow: visible !important; }
+  .print-area .paper { box-shadow: none !important; max-width: none !important; min-height: 0 !important; padding: 0 !important; }
+}
